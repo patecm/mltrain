@@ -1,0 +1,54 @@
+run:
+  model: xgboost
+  output_dir: runs
+  run_name_template: "{model}_{timestamp}_{user}"
+
+data:
+  format: parquet
+  s3:
+    storage_options:
+      # usually leave empty and rely on IAM role/env vars
+      # profile: default
+      # client_kwargs:
+      #   region_name: us-west-2
+  datasets:
+    full: "s3://my-bucket/my-dataset"   # base dir containing year=/month= partitions
+  partitioning:
+    style: hive                         # expects .../year=YYYY/month=MM/
+    year_key: year
+    month_key: month
+
+  target_col: label
+  ymd_cols: [year, month, day]          # columns in the data
+  id_cols: [user_id]
+  drop_cols: [leak_col]
+
+  time_split:
+    enabled: true
+    # boundaries are inclusive on end date
+    train:
+      start: "2024-01-01"
+      end:   "2025-10-31"
+    val:
+      start: "2025-11-01"
+      end:   "2025-11-30"
+    test:
+      start: "2025-12-01"
+      end:   "2025-12-31"
+    timezone: "UTC"
+
+training:
+  eval_metrics: [logloss, auc]    # optional (xgboost supports list)
+  log_every_n: 25                 # logs every N boosting rounds if eval_set present
+  early_stopping_rounds: 50       # optional (requires val split)
+
+model:
+  params:
+    n_estimators: 2000
+    max_depth: 6
+    learning_rate: 0.03
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_lambda: 1.0
+    tree_method: hist
+    random_state: 42
